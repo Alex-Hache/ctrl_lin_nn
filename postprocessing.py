@@ -20,7 +20,7 @@ def extract_parameter_name(module_name):
             return parts[-2]
 
     # Retourne None si aucune correspondance n'est trouvée
-    return None
+    return parts[-1]
 
 def sim_closed_loop(strMatFileWeights, net_dims, dt, strNameSaveFig : str ):
     dt = matlab.double([dt])

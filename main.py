@@ -72,9 +72,7 @@ def main(args):
     os.makedirs("./data", exist_ok=True)
     os.makedirs(config.train_dir, exist_ok=True)
     if config.mode == 'train':
-        if config.struct == 'fnn':
-            train_fnn(config)
-        elif config.struct == 'rnn':
+        if config.struct == 'rnn':
             train_rnn(config)
     
 
@@ -82,29 +80,29 @@ def main(args):
 if __name__=='__main__':
     parser = ArgumentParser()
     parser.add_argument('--mode', type=str, default='train')
-    parser.add_argument('-d', '--dataset', type=str, default='pendulum',
+    parser.add_argument('-d', '--dataset', type=str, default='toy_linear',
                         help="dataset [toy_linear, pendulum]")
     parser.add_argument('-s', '--seed', type=int, default=42)
     parser.add_argument('--struct', type=str, default='rnn', help = "[fnn, rnn]")
-    parser.add_argument('-m', '--model', type=str, default='flnssm',
+    parser.add_argument('-m', '--model', type=str, default='linear',
                         help="[linear, flnssm]")
     parser.add_argument('--lin', type = str, default='hinfnn',
                         help = "[alphaLNN, hinfnn, h2nn]")
     parser.add_argument('-i', '--integrator', type = str, default = 'RK4')
     parser.add_argument('-a', '--alpha', type=float, default=3,
                         help="Network alpha stability bound")
-    parser.add_argument('-g', '--gamma', type=float, default=1e-3,
+    parser.add_argument('-g', '--gamma', type=float, default=0.5,
                         help="Network L2 gain")
     parser.add_argument('-n', '--nu', type=float, default=1.0,
                         help="Network H2 gain")
     parser.add_argument('--nh', '--hidden_size', type = int, default = 20)
 
-    parser.add_argument('-e','--epochs', type=int, default=20000)
+    parser.add_argument('-e','--epochs', type=int, default=2000)
     parser.add_argument('--seq_len', type = int, default = 30)
     parser.add_argument('-p', '--patience', type = int, default=100)
 
     parser.add_argument('--tol_change', type = float, default = 0.01) # 1%
-    parser.add_argument('--lr', type=float, default= 5e-3, help="learning rate")
+    parser.add_argument('--lr', type=float, default= 1e-2, help="learning rate")
     parser.add_argument('--loss', type=str, default='mse')
     parser.add_argument('--train_batch_size', type=int, default=512)
     parser.add_argument('-l', '--lmi', type = str, default='', help ="[lyap, hinf, h2]")

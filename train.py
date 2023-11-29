@@ -9,35 +9,6 @@ from postprocessing import *
 from alive_progress import alive_bar
 from scipy.io import savemat
 import copy
-def train_fnn(config):
-    seed_everything(config.seed)
-    trainLoader, testLoader = getDataLoader(config)
-    model = getModel(config)
-    criterion = getLoss(config, model)
-    if not os.path.exists(config.train_dir):
-        os.makedirs(config.train_dir)
-
-    print(f"Set global seed to {config.seed:d}")
-    nparams = np.sum([p.numel() for p in model.parameters() if p.requires_grad])
-    if nparams >= 1000000:
-        print(f"name: {config.model}-{config.layer}-{config.scale}, num_params: {1e-6*nparams:.1f}M")
-    else:
-        print(f"name: {config.model}-{config.layer}-{config.scale}, num_params: {1e-3*nparams:.1f}K")
-
-    # Choice of the training algorithm
-    if hasattr(criterion, 'lmi'):
-        best_model, dict_res = train_logdet(model, criterion, trainLoader, testLoader, config)
-    else:
-        best_model, dict_res = train_ff(model, criterion, trainLoader, testLoader, config)
-
-    # Saving config
-    savemat(config.train_dir + '/config.mat', config.__dict__)
-    # Saving best model
-    weights, biases = best_model.extract_weights()
-    savemat(config.train_dir + '/model.mat', {'weights' : weights, 'biases' : biases})
-
-    savemat(config.train_dir + '/losses.mat', dict_res)
-    return best_model, dict_res 
 
 def train_rnn(config):
     seed_everything(config.seed)
@@ -105,170 +76,6 @@ def train_rnn(config):
         strDirSaveName = config.train_dir + '/model.mat'
         sim_closed_loop(strDirSaveName, net_dims, ts, str_clr_sim_fig_name)
     return best_model, dict_res 
-
-
-def train_logdet(model, criterion, train_data, test_data, config):
-
-    def is_legal(v):
-        legal = not torch.isnan(v).any() and not torch.isinf(v)
-        return legal
-
-    
-    Epochs = config.epochs
-    Lr = config.lr
-    update_lmi_cert = config.bCertGrad
-    #steps_per_epoch = len(trainLoader)
-    if [criterion.lmi.parameters()]:
-        params_net = list(model.parameters())
-        params_LMI = list(criterion.lmi.parameters())
-        params = list(set(params_net+params_LMI))# Get only unique values from all parameters
-        optim = torch.optim.Adam(params, lr = 1e-3, weight_decay=0)
-    else :
-        optim = torch.optim.Adam(model.parameters(), lr=Lr, weight_decay=0)
-    
-
-    print_freq = config.test_freq #100
-    patience = config.patience # 500
-    tol_change = config.tol_change #1e-5 # Taille de la boule
-    max_ls = config.max_ls # 1000
-    alpha_ls = config.alpha_ls # 0.5
-    bBacktrack = config.backtrack # False
-    print(bBacktrack)
-    mu_dec = config.mu_dec
-
-    n_u, no_decrease_counter = 0,0
-    best_obj = 1e7
-    bls_reached = False
-    vObj,vReg, vUpd, vTest = [], [], [], []
-    mu0 = criterion.mu
-    tot_backtrack = 0
-
-    # Prepare data
-    u_train, y_train, x_train = train_data
-    u_test, y_test = test_data
-
-    nx = x_train.shape[1]
-
-    x0_val = torch.zeros((config.nx), dtype=torch.float32)
-    u_torch_val = u_test.to(dtype= torch.float32)
-    y_true_torch_val = y_test.to(dtype= torch.float32)
-    
-    _, y_sim_init = model.simulate(u_torch_val, x0_val)
-    val_mse =  torch.mean((y_true_torch_val-y_sim_init)**2)
-    if torch.isnan(val_mse):
-        val_mse = torch.inf
-    print("Initial val_MSE = {:.7f} \n".format(float(val_mse)))
-    torch.save(model.state_dict(), f"{config.train_dir}/model.ckpt")
-
-    with alive_bar(num_iter) as bar:
-        epoch_loss = 0.0
-        for itr in range(0, num_iter):
-
-            optimizer.zero_grad()
-
-            # Simulate
-            #x0_torch = torch.zeros((nx))
-            batch_x0_hidden, batch_u, batch_y, batch_x_hidden = get_batch(batch_size, seq_len)
-            x_sim_torch_fit, y_sim_torch_fit = model(batch_u, batch_x0_hidden)
-
-
-            # Compute fit loss
-            loss = criterion(batch_y, y_sim_torch_fit, batch_x_hidden, x_sim_torch_fit)
-
-            epoch_loss += float(loss.item())
-
-            if itr % test_freq == 0:
-                # Statistics
-                epoch_loss = epoch_loss/test_freq
-                vLoss.append(epoch_loss)
-
-                with torch.no_grad():
-                    # Simulation perf on test data
-                    _, y_sim_val = model.simulate(u_torch_val, x0_val)
-                    val_mse =  torch.mean((y_true_torch_val-y_sim_val)**2)
-                    vVal_mse.append(val_mse)
-
-                if (best_loss - val_mse)/best_loss > tol_change:
-                        no_decrease_counter = 0
-                        best_loss = val_mse
-                        torch.save(model.state_dict(), f"{config.train_dir}/model.ckpt")  
-
-                        
-                else:
-                    no_decrease_counter += 1
-                print(" Epoch loss = {:.7f} || Val_MSE = {:.7f} || Best loss = {:.7f} \n".format(float(epoch_loss),
-                        float(val_mse), float(best_loss)))    
-                epoch_loss = 0.0
-                if no_decrease_counter> patience/5 and hasattr(criterion, 'mu'):
-                    criterion.update_mu_(0.1)
-                    print(f"Updating barrier term weight : mu = {criterion.mu}")
-                    no_decrease_counter = 0
-                if hasattr(criterion, 'mu') and criterion.mu<1e-8:
-                    break
-                if no_decrease_counter > patience: # early stopping
-                    break
-                
-            if (math.isnan(loss)): 
-                break
-            # Optimize
-            loss.backward()
-            optimizer.step()
-
-            
-            bar()
-
-    train_time = time.time() - start_time
-
-    print("Total dentification runtime : {} \n Best loss : {} \n".format(train_time, best_loss))
-
-    model_state = torch.load(f"{config.train_dir}/model.ckpt")
-    model.load_state_dict(model_state)
-    # Final simulation perf on test data
-    x_sim_val, y_sim_val = model.simulate(u_torch_val, x0_val)
-    val_mse =  torch.mean((y_true_torch_val-y_sim_val)**2)
-
-    # Final simulation on train data
-    x_sim_train, y_sim_train = model.simulate(u_train, torch.zeros(nx))
-    train_mse = torch.mean((y_train - y_sim_train)**2)
-    print(" Final MSE = {:.7f} || Val_MSE = {:.7f} \n".format(float(train_mse.detach()),float(val_mse)))
-
-    model.ss_model.eval_()
-
-    fig, ax = plt.subplots(2,1, sharex=True)
-
-    ax[0].plot(range(len(np.array(vObj))),np.log10(np.array(vObj)), label = 'Loss')
-    ax[0].plot((range(len(np.array(vTest)))), np.log10(np.array(vTest)), label = 'Test loss') 
-    # Tracer des lignes verticales pour chaque indice
-    for epch in vUpd:
-        ax[0].axvline(x=epch, color='r', linestyle='--')
-
-    # Ajouter une légende
-    ax[0].legend()
-
-    ax[1].plot(range(len(np.array(vReg))), vReg, label = 'Barrier term x mu')
-    for epch in vUpd:
-        ax[1].axvline(x=epch, color='r', linestyle='--')
-    ax[1].legend()
-    ax[1].set_xlabel("Epochs")
-    ax[0].set_ylabel("MSE (log10)")
-    plt.title(f"{config.model} log det backtrack {config.backtrack}")
-    plt.show()
-
-    strSaveName = str(config.model) + '_logdet' + str(mu0) + f'lr_{Lr}' + f'_{Epochs}epch'
-    if bBacktrack:
-        strSaveName = strSaveName + '_bt'
-    if update_lmi_cert:
-        strSaveName = strSaveName + '_updtCert'
-        
-
-    fig.savefig(f"{config.train_dir}/{strSaveName}.png")
-
-    dict_res = {'train_loss' : vObj,
-                'test_loss' : vTest,
-                'reg_term' : vReg}
-
-
-    return best_model, dict_res  
 
 
 def train_rec(model, criterion, train_data, test_data, config):
@@ -358,7 +165,7 @@ def train_rec(model, criterion, train_data, test_data, config):
 
             epoch_loss += float(loss.item())
 
-            if itr % test_freq == 0:
+            if itr % test_freq == 0 or itr == num_iter-1:
                 # Statistics
                 epoch_loss = epoch_loss/test_freq
                 vLoss.append(epoch_loss)
