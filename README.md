@@ -30,3 +30,4 @@ python main.py -d pendulum -m flnssm --lmi hinf -g 1e-3 -e 10000
 python main.py -d pendulum -m flnssm --lin hinfnn -g 1e-3 -e 15000 --lr 5e-3
 ```
 
+Feel free to contact me : alexandre dot hache at imt-tlantique dot fr
