@@ -86,7 +86,7 @@ if __name__=='__main__':
     parser.add_argument('--struct', type=str, default='rnn', help = "[fnn, rnn]")
     parser.add_argument('-m', '--model', type=str, default='linear',
                         help="[linear, flnssm]")
-    parser.add_argument('--lin', type = str, default='hinfnn',
+    parser.add_argument('--lin', type = str, default='',
                         help = "[alphaLNN, hinfnn, h2nn]")
     parser.add_argument('-i', '--integrator', type = str, default = 'RK4')
     parser.add_argument('-a', '--alpha', type=float, default=3,
@@ -94,7 +94,7 @@ if __name__=='__main__':
     parser.add_argument('-g', '--gamma', type=float, default=0.5,
                         help="Network L2 gain")
     parser.add_argument('-n', '--nu', type=float, default=1.0,
-                        help="Network H2 gain")
+                        help="Network H2 gain") # Unused for now
     parser.add_argument('--nh', '--hidden_size', type = int, default = 20)
 
     parser.add_argument('-e','--epochs', type=int, default=2000)
