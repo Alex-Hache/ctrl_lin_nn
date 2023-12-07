@@ -22,7 +22,7 @@ def train_rnn(config):
     test_data = u_test, y_test
 
     model = getModel(config, train_data)
-    if config.lin =='': # No particular parameterization so we can use data to initialize linear part
+    if config.lin =='' and config.dataset == 'pendulum': # No particular parameterization so we can use data to initialize linear part
                 # Perform linear estimate from train data
         save_bla_path = os.path.join(os.getcwd(), 'pend_BLA.mat')
         '''
@@ -34,7 +34,7 @@ def train_rnn(config):
         C0 = torch.from_numpy(bla['C']).to(torch.float32)
         scale = 0.1 #Scaled down factor = 0.1 for both tries
 
-        model.init_weights(A0, B0*scale, C0, isLinTrainable = True) 
+        model.init_weights_(A0, B0*scale, C0, is_grad = True) 
     criterion = getLoss(config, model) # Call loss first to instantiate criterion on model variable and not
     sim_model = getIntegrator(config,model, ts)
 

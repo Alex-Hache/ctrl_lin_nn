@@ -58,6 +58,8 @@ def main(args):
         config.alpha_ls  = 0.5 # 0.5
         config.mu_dec = 0.1 # Decrement of the barrier term to each plateau
 
+    if config.lmi == '' and config.lin == '': #No constraints
+        config.reg_lmi = ''
         
     # Creation of the results directory
     if config.lin == 'alphaLNN' or config.lmi == 'lyap': # Alpha stable models

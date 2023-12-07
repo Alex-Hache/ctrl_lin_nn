@@ -61,7 +61,7 @@ class NNLinear(nn.Module):
 
         return dx,y
 
-    def init_model_(self, A0, B0, C0, is_grad = True):
+    def init_weights_(self, A0, B0, C0, is_grad = True):
         self.A.weight = nn.parameter.Parameter(A0)
         self.B.weight = nn.parameter.Parameter(B0)
         self.C.weight = nn.parameter.Parameter(C0)
@@ -456,9 +456,9 @@ class FLNSSM(nn.Module):
         
         return dz, y 
 
-    def init_weights(self, A0, B0, C0, isLinTrainable = True):
+    def init_weights_(self, A0, B0, C0, is_grad = True):
         # Initializing linear weights
-        self.linmod.init_model_(A0, B0, C0, is_grad=isLinTrainable)
+        self.linmod.init_model_(A0, B0, C0, is_grad=is_grad)
 
         # Initializing nonlinear output weights to 0
         nn.init.zeros_(self.alpha_out.weight)
