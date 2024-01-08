@@ -88,7 +88,7 @@ if __name__=='__main__':
     parser.add_argument('--struct', type=str, default='rnn', help = "[fnn, rnn]")
     parser.add_argument('-m', '--model', type=str, default='linear',
                         help="[linear, flnssm]")
-    parser.add_argument('--lin', type = str, default='',
+    parser.add_argument('--lin', type = str, default='hinfnn',
                         help = "[alphaLNN, hinfnn, h2nn]")
     parser.add_argument('-i', '--integrator', type = str, default = 'RK4')
     parser.add_argument('-a', '--alpha', type=float, default=3,
